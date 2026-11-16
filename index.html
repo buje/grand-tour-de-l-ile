@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grand Tour de l'Île | Le monde ouvert 100 % péi par Squirrel CORP</title>
+<meta name="description" content="GTI, Grand Tour de l'Île : le jeu en monde ouvert qui se passe à La Réunion. Choisissez votre personnage et lancez la partie.">
+<meta property="og:title" content="Grand Tour de l'Île (GTI)">
+<meta property="og:description" content="Un yab des Hauts. Un touriste. Une île entière à traverser. Lancez la partie.">
+<meta property="og:image" content="assets/og.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#170B2E">
+<link rel="stylesheet" href="assets/vendor/leaflet.css">
+<style>
+@font-face{font-family:"Bowlby One";src:url(assets/fonts/bowlby-one-latin-400-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Barlow";font-weight:400;src:url(assets/fonts/barlow-latin-400-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Barlow";font-weight:600;src:url(assets/fonts/barlow-latin-600-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Barlow Condensed";font-weight:600;src:url(assets/fonts/barlow-condensed-latin-600-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Barlow Condensed";font-weight:700;src:url(assets/fonts/barlow-condensed-latin-700-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"VT323";src:url(assets/fonts/vt323-latin-400-normal.woff2) format("woff2");font-display:swap}
+:root{--night:#170B2E;--night2:#241046;--violet:#5B2A9A;--pink:#FF4F8B;--orange:#FF8A3D;--gold:#FFC857;--cream:#FFF3D6;--ink:#12081F;--lagoon:#35D0C9}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--ink);color:var(--cream);font-family:"Barlow",system-ui,sans-serif;font-size:17px;line-height:1.45;-webkit-font-smoothing:antialiased;overflow:hidden}
+img{display:block;max-width:100%}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+.ico{width:1.1em;height:1.1em;display:inline-block;vertical-align:-.18em;flex:none}
+.ico svg{width:100%;height:100%;display:block}
+.screen{position:fixed;inset:0;display:none}
+body.s-lobby #lobby,body.s-loading #loading,body.s-pong #pong{display:block}
+
+/* ---------- Titre ---------- */
+.logo{display:inline-block;transform:rotate(-4deg);position:relative}
+.logo .w{display:block;font-family:"Bowlby One";text-transform:uppercase;line-height:1;color:var(--cream);-webkit-text-stroke:.035em var(--ink);paint-order:stroke fill;text-shadow:.07em .07em 0 var(--ink),.12em .12em 0 var(--pink)}
+.logo .w1,.logo .w3{font-size:clamp(3.4rem,15vw,10.5rem)}
+.logo .w2{font-size:clamp(1.9rem,8.2vw,5.6rem);color:var(--gold);margin:-.05em 0 -.02em}
+.logo .row{display:flex;align-items:center;justify-content:center;gap:.5rem}
+.logo .gti{flex:none;font-family:"Bowlby One";font-size:clamp(1.3rem,4.6vw,3.2rem);background:var(--pink);color:#fff;border:.1em solid var(--ink);border-radius:50%;width:2.6em;height:2.6em;display:grid;place-items:center;transform:rotate(14deg);box-shadow:.12em .12em 0 var(--ink)}
+
+/* ---------- Intro ---------- */
+#intro{position:fixed;inset:0;z-index:1000;background:var(--ink);display:grid;place-items:center;overflow:hidden}
+#intro .sky{position:absolute;inset:0;background:linear-gradient(180deg,#3B1570 0%,#8E2C8F 32%,#FF4F8B 58%,#FF8A3D 78%,#FFC857 100%);clip-path:circle(0% at 50% 100%)}
+#intro .sun{position:absolute;left:50%;bottom:-34vmin;width:68vmin;height:68vmin;border-radius:50%;transform:translateX(-50%);background:radial-gradient(circle at 50% 40%,#FFF3D6 0%,#FFC857 45%,#FF8A3D 100%);opacity:0}
+#intro .ridge{position:absolute;left:0;right:0;bottom:0;height:34vh;background:var(--ink);clip-path:polygon(0 62%,8% 40%,15% 55%,24% 18%,31% 46%,40% 30%,47% 52%,56% 8%,63% 44%,72% 26%,80% 50%,90% 22%,100% 48%,100% 100%,0 100%);transform:translateY(100%)}
+#intro .presents{position:relative;text-align:center;opacity:0}
+#intro .presents img{width:min(300px,60vw);margin-inline:auto}
+#intro .presents span{display:block;margin-top:1rem;font-family:"Barlow Condensed";font-weight:600;letter-spacing:.4em;text-transform:uppercase;font-size:1rem;color:#CDB7E6}
+#intro .title{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:1rem}
+#skip{position:absolute;right:1rem;bottom:1rem;z-index:5;background:rgba(18,8,31,.6);color:var(--cream);border:1px solid rgba(255,243,214,.4);border-radius:999px;padding:.45em 1em;font:600 .9rem "Barlow Condensed";letter-spacing:.12em;text-transform:uppercase;display:inline-flex;gap:.5em;align-items:center}
+
+/* ---------- Lobby : décor ---------- */
+#lobby{overflow:hidden;background:#3B1570}
+.bg{position:absolute;inset:-4%;background:url(assets/lobby.jpg) 30% 60%/cover no-repeat;animation:drift 38s ease-in-out infinite alternate;will-change:transform}
+@keyframes drift{from{transform:scale(1.02) translate3d(-1.2%,0,0)}to{transform:scale(1.12) translate3d(1.6%,-1.2%,0)}}
+.sunglow{position:absolute;right:-12vmax;top:38%;width:60vmax;height:60vmax;border-radius:50%;background:radial-gradient(circle,rgba(255,220,140,.55) 0,rgba(255,138,61,.22) 34%,transparent 62%);mix-blend-mode:screen;animation:pulse 7s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.12);opacity:.75}}
+.cloud{position:absolute;height:22vh;width:70vw;border-radius:50%;background:radial-gradient(ellipse,rgba(255,235,245,.34),transparent 68%);filter:blur(14px);animation:cloud 60s linear infinite}
+.cloud.c1{top:6%;left:-70vw}.cloud.c2{top:22%;left:-70vw;animation-duration:86s;animation-delay:-40s;opacity:.7}.cloud.c3{top:40%;left:-70vw;animation-duration:110s;animation-delay:-70s;opacity:.5}
+@keyframes cloud{to{transform:translateX(240vw)}}
+.shimmer{position:absolute;left:30%;right:-5%;bottom:0;height:27%;background:repeating-linear-gradient(180deg,rgba(255,243,214,.0) 0 9px,rgba(255,243,214,.2) 9px 11px);-webkit-mask-image:radial-gradient(ellipse at 78% 0%,#000 0,transparent 68%);mask-image:radial-gradient(ellipse at 78% 0%,#000 0,transparent 68%);animation:shim 3.4s linear infinite;mix-blend-mode:screen}
+@keyframes shim{to{background-position:0 22px}}
+.motes{position:absolute;inset:0;pointer-events:none}
+.motes i{position:absolute;bottom:-10px;width:5px;height:5px;border-radius:50%;background:rgba(255,231,168,.8);box-shadow:0 0 10px rgba(255,200,87,.9);animation:rise linear infinite}
+@keyframes rise{to{transform:translate3d(40px,-105vh,0);opacity:0}}
+.veil{position:absolute;inset:0;background:linear-gradient(90deg,rgba(18,8,31,.5) 0,rgba(18,8,31,.12) 46%,rgba(18,8,31,0) 100%),linear-gradient(180deg,rgba(18,8,31,.35) 0,transparent 16%,transparent 74%,rgba(18,8,31,.55) 100%)}
+body.calm .bg,body.calm .sunglow,body.calm .cloud,body.calm .shimmer,body.calm .motes i,body.calm .dot{animation-play-state:paused}
+
+/* ---------- Lobby : interface ---------- */
+.ui{position:relative;z-index:2;height:100%;display:grid;grid-template-rows:auto 1fr auto;padding:clamp(.8rem,2vw,1.4rem) clamp(1rem,4vw,3rem)}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:1rem}
+.bar img{height:28px;width:auto}
+.online{font:700 .82rem "Barlow Condensed";letter-spacing:.16em;text-transform:uppercase;background:rgba(18,8,31,.7);border:1px solid rgba(255,243,214,.25);padding:.4em .8em;border-radius:99px;display:inline-flex;gap:.5em;align-items:center}
+.dot{width:.6em;height:.6em;border-radius:50%;background:#5CFF9D;box-shadow:0 0 8px #5CFF9D;animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.25}}
+.main{display:grid;gap:1.2rem;align-items:center;min-height:0;grid-template-columns:minmax(0,1fr)}
+.left{display:grid;gap:1.1rem;justify-items:start}
+.left .logo .w1,.left .logo .w3{font-size:clamp(2.6rem,6vw,5.4rem)}
+.left .logo .w2{font-size:clamp(1.5rem,3.3vw,2.9rem)}
+.left .logo .gti{font-size:clamp(1rem,2.1vw,1.9rem)}
+.pitch{font:700 clamp(1rem,2vw,1.35rem) "Barlow Condensed";letter-spacing:.06em;text-transform:uppercase;text-shadow:0 2px 0 var(--ink);max-width:30ch}
+.tabs{display:flex;gap:.4rem;flex-wrap:wrap}
+.tab{font:700 1rem "Barlow Condensed";letter-spacing:.08em;text-transform:uppercase;background:rgba(18,8,31,.62);border:2px solid rgba(255,243,214,.22);border-radius:12px;padding:.5em .7em;display:inline-flex;gap:.5em;align-items:center;transition:.18s}
+.tab:hover{border-color:var(--cream)}
+.tab[aria-selected=true]{background:var(--cream);color:var(--ink);border-color:var(--ink);box-shadow:4px 4px 0 var(--pink)}
+.play{font-family:"Bowlby One";font-size:clamp(1.5rem,3.4vw,2.4rem);letter-spacing:.04em;text-transform:uppercase;background:var(--gold);color:var(--ink);border:4px solid var(--ink);border-radius:18px;padding:.5em 1.4em .45em;box-shadow:7px 7px 0 var(--ink);display:inline-flex;gap:.5em;align-items:center;transition:transform .15s,box-shadow .15s;animation:beat 2.2s ease-in-out infinite}
+.play:hover{transform:translate(-3px,-3px);box-shadow:10px 10px 0 var(--ink)}
+@keyframes beat{50%{box-shadow:7px 7px 0 var(--ink),0 0 0 12px rgba(255,200,87,.18)}}
+.sum{font:600 .95rem "Barlow Condensed";letter-spacing:.12em;text-transform:uppercase;color:#FFE7A8;text-shadow:0 1px 0 var(--ink)}
+.panel{background:rgba(18,8,31,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:2px solid rgba(255,243,214,.2);border-radius:22px;padding:clamp(1rem,2vw,1.5rem);min-height:0;max-height:100%;overflow:auto}
+.panel h2{font:700 1.5rem "Barlow Condensed";letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.9rem}
+.pane{display:none}.pane.on{display:block}
+.chars{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
+.char{text-align:left;background:rgba(255,243,214,.06);border:3px solid transparent;border-radius:16px;overflow:hidden;transition:.18s;display:block;width:100%}
+.char img{width:100%;height:auto;aspect-ratio:1;object-fit:cover}
+.char .in{padding:.7rem .8rem .9rem;display:block}
+.char b{font-family:"Bowlby One";font-weight:400;font-size:1.35rem;text-transform:uppercase;display:block;line-height:1}
+.char em{font:700 .85rem "Barlow Condensed";font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);display:block;margin:.25rem 0 .5rem}
+.char[aria-pressed=true]{border-color:var(--gold);background:rgba(255,200,87,.14);box-shadow:0 0 0 4px rgba(255,200,87,.2)}
+.st{display:grid;grid-template-columns:1fr auto;font:600 .8rem "Barlow Condensed";letter-spacing:.08em;text-transform:uppercase;margin-top:.4rem;gap:.15rem .5rem}
+.st u{grid-column:1/-1;height:7px;border-radius:9px;background:rgba(255,243,214,.14);overflow:hidden;text-decoration:none}
+.st u s{display:block;height:100%;background:linear-gradient(90deg,var(--pink),var(--gold));border-radius:9px;transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.mwrap{display:grid;gap:.8rem}
+#map{height:230px;border-radius:14px;background:#1c2f4a;border:2px solid var(--ink)}
+.mlist{list-style:none;display:grid;gap:.4rem}
+.mlist button{width:100%;text-align:left;display:grid;grid-template-columns:auto 1fr auto;gap:.1rem .7rem;align-items:center;background:rgba(255,243,214,.06);border:2px solid transparent;border-radius:11px;padding:.5rem .7rem}
+.mlist button[aria-pressed=true]{border-color:var(--pink);background:rgba(255,79,139,.2)}
+.mlist .n{font-family:"Bowlby One";color:var(--gold);font-size:1.1rem;grid-row:1/3}
+.mlist .t{font:700 1.08rem "Barlow Condensed";letter-spacing:.04em;text-transform:uppercase;line-height:1.1}
+.mlist .d{grid-column:2;font-size:.86rem;color:#DCC9EC;line-height:1.3}
+.mlist .f{grid-row:1/3;grid-column:3;color:var(--orange);display:flex}
+.pin{width:30px;height:30px;border-radius:50% 50% 50% 5px;transform:rotate(-45deg);background:var(--pink);border:3px solid var(--ink);display:grid;place-items:center}
+.pin b{transform:rotate(45deg);font-family:"Bowlby One";color:#fff;font-size:12px}
+.pin.on{background:var(--gold)}.pin.on b{color:var(--ink)}
+.leaflet-container{font-family:"Barlow",sans-serif}
+.set{display:grid;gap:1rem}
+.setrow{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.7rem .9rem;background:rgba(255,243,214,.06);border-radius:12px}
+.setrow span{font:700 1.05rem "Barlow Condensed";letter-spacing:.08em;text-transform:uppercase;display:inline-flex;gap:.5em;align-items:center}
+.seg{display:inline-flex;background:rgba(18,8,31,.8);border-radius:10px;padding:3px;gap:3px}
+.seg button{font:700 .9rem "Barlow Condensed";letter-spacing:.08em;text-transform:uppercase;border:0;background:none;padding:.4em .7em;border-radius:8px}
+.seg button[aria-pressed=true]{background:var(--gold);color:var(--ink)}
+.foot{font-size:.74rem;color:rgba(255,243,214,.6);display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding-top:.6rem}
+@media(min-width:960px){.main{grid-template-columns:minmax(0,1fr) minmax(0,520px);gap:3rem}.panel{max-height:calc(100svh - 150px)}}
+@media(max-width:959px){
+  #lobby{overflow:auto}.ui{height:auto;min-height:100%}.left{justify-items:center;text-align:center;padding-top:.6rem}.tabs{justify-content:center}
+  .veil{background:linear-gradient(180deg,rgba(18,8,31,.55) 0,rgba(18,8,31,.35) 40%,rgba(18,8,31,.82) 100%)}
+  .bg,.sunglow,.cloud,.shimmer,.veil,.motes{position:fixed}.panel{max-height:none}
+  .playwrap{position:sticky;bottom:.6rem;z-index:5;display:grid;justify-items:center;gap:.4rem;order:9;background:rgba(18,8,31,.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,243,214,.2);border-radius:20px;padding:.7rem .8rem .6rem}
+  .play{font-size:1.5rem;width:100%;justify-content:center}
+  .left{order:1}.panel{order:2}.main{padding-bottom:.5rem}
+}
+
+/* ---------- Chargement ---------- */
+#loading{background:var(--ink) url(assets/duo.jpg) center/cover no-repeat}
+#loading::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(18,8,31,.55),rgba(18,8,31,.92))}
+.ld{position:absolute;left:0;right:0;bottom:0;padding:clamp(1.2rem,5vw,3rem)}
+.ld .tip{font:700 clamp(1.1rem,3vw,1.7rem) "Barlow Condensed";letter-spacing:.04em;text-transform:uppercase;min-height:2.6em;max-width:36ch}
+.ld .row{display:flex;justify-content:space-between;font:700 .9rem "Barlow Condensed";letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin:.8rem 0 .4rem}
+.ld .track{height:14px;border-radius:99px;background:rgba(255,243,214,.15);overflow:hidden}
+.ld .track i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pink),var(--orange),var(--gold))}
+#flash{position:fixed;inset:0;background:#fff;z-index:900;opacity:0;pointer-events:none}
+
+/* ---------- Pong ---------- */
+#pong{background:#000;color:#fff;font-family:"VT323",monospace;overflow:auto}
+.pg{max-width:880px;margin:0 auto;padding:clamp(.8rem,3vw,1.6rem) clamp(.7rem,3vw,1.4rem) 3rem}
+.pg .hd{display:flex;justify-content:space-between;gap:1rem;font-size:1.25rem;letter-spacing:.06em;color:#9a9a9a;margin-bottom:.5rem}
+.crt{position:relative;border:4px solid #fff;background:#000}
+.crt canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:none}
+.crt::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(180deg,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.28) 2px 4px)}
+.hint{font-size:1.1rem;letter-spacing:.06em;color:#9a9a9a;margin-top:.5rem}
+.msg{margin-top:1.4rem;font-size:clamp(1.35rem,4.4vw,1.9rem);line-height:1.25;letter-spacing:.03em}
+.msg p{margin-top:.8rem;min-height:1em}
+.msg .err{color:#000;background:#fff;display:inline-block;padding:0 .4em}
+.cur::after{content:"_";animation:blink 1s steps(1) infinite}
+.acts{display:flex;gap:.8rem;flex-wrap:wrap;margin-top:1.6rem;opacity:0;transition:opacity .5s}
+.acts.on{opacity:1}
+.pbtn{font:inherit;font-size:1.45rem;letter-spacing:.04em;background:#fff;color:#000;border:0;padding:.5em .9em;display:inline-flex;gap:.5em;align-items:center;text-decoration:none;line-height:1.1}
+.pbtn.ghost{background:#000;color:#fff;box-shadow:inset 0 0 0 3px #fff}
+.pbtn:active{transform:translate(2px,2px)}
+.term{margin-top:1.6rem;border:3px solid #fff;opacity:0;transition:opacity .5s}
+.term.on{opacity:1}
+.term .th{display:flex;justify-content:space-between;align-items:center;gap:.6rem;background:#fff;color:#000;font-size:1.2rem;padding:.3em .7em}
+.term pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.82rem;line-height:1.55;white-space:pre-wrap;padding:1rem;max-height:46vh;overflow:auto;color:#d8ffd8}
+.sig{margin-top:2rem;font-size:1.1rem;line-height:1.4;letter-spacing:.04em;color:#9a9a9a}
+.sig img{height:26px;margin-bottom:.8rem;opacity:.9}
+.sig a{color:#fff}
+@media(prefers-reduced-motion:reduce){.bg,.sunglow,.cloud,.shimmer,.motes i,.dot,.play{animation:none}}
+</style>
+</head>
+<body class="s-lobby">
+
+<div id="intro" aria-hidden="true">
+  <div class="sky"></div><div class="sun"></div><div class="ridge"></div>
+  <div class="presents"><img src="assets/logo-squirrel-corp-white.svg" alt=""><span>présente</span></div>
+  <div class="title"><div class="logo"><span class="w w1">Grand</span><span class="w w2">Tour de l'</span><span class="row"><span class="w w3">Île</span><span class="gti">GTI</span></span></div></div>
+  <button id="skip" type="button">Passer <span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M21 4v16" /> <path d="M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z" /> </svg></span></button>
+</div>
+
+<!-- ================= LOBBY ================= -->
+<main id="lobby" class="screen">
+  <div class="bg"></div><div class="sunglow"></div>
+  <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+  <div class="shimmer"></div><div class="motes" id="motes"></div><div class="veil"></div>
+  <div class="ui">
+    <div class="bar">
+      <a href="https://www.squirrel.fr" target="_blank" rel="noopener" aria-label="Squirrel CORP"><img src="assets/logo-squirrel-corp-white.svg" alt="Squirrel CORP"></a>
+      <span class="online"><i class="dot"></i> 2 joueurs en ligne</span>
+    </div>
+    <div class="main">
+      <div class="left">
+        <h1 class="logo" aria-label="Grand Tour de l'Île"><span class="w w1">Grand</span><span class="w w2">Tour de l'</span><span class="row"><span class="w w3">Île</span><span class="gti">GTI</span></span></h1>
+        <p class="pitch">Le monde ouvert 100 % péi. Un yab des Hauts, un touriste et toute une île à traverser.</p>
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" aria-selected="true" data-pane="p-char"><span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /> <circle cx="12" cy="7" r="4" /> </svg></span> Personnage</button>
+          <button class="tab" role="tab" aria-selected="false" data-pane="p-miss"><span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" /> <path d="M15 5.764v15" /> <path d="M9 3.236v15" /> </svg></span> Mission</button>
+          <button class="tab" role="tab" aria-selected="false" data-pane="p-set"><span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /> <circle cx="12" cy="12" r="3" /> </svg></span> Réglages</button>
+        </div>
+      </div>
+      <section class="panel" aria-live="polite">
+        <div class="pane on" id="p-char">
+          <h2>Choisissez votre personnage</h2>
+          <div class="chars">
+            <button class="char" type="button" aria-pressed="true" data-c="Thomas">
+              <img src="assets/thomas-sq.jpg" alt="Thomas en yab des Hauts, chapeau de paille et chemise à carreaux" width="420" height="420">
+              <span class="in"><b>Thomas</b><em>Le yab des Hauts</em>
+                <span class="st">Raccourcis connus<i>98</i><u><s style="width:98%"></s></u></span>
+                <span class="st">Résistance au froid<i>95</i><u><s style="width:95%"></s></u></span>
+                <span class="st">Patience en bouchon<i>11</i><u><s style="width:11%"></s></u></span>
+              </span>
+            </button>
+            <button class="char" type="button" aria-pressed="false" data-c="Édouard">
+              <img src="assets/edouard-sq.jpg" alt="Édouard en touriste, chemise rayée et appareil photo" width="420" height="420">
+              <span class="in"><b>Édouard</b><em>Le touriste</em>
+                <span class="st">Confiance dans le GPS<i>100</i><u><s style="width:100%"></s></u></span>
+                <span class="st">Qualité du code<i>97</i><u><s style="width:97%"></s></u></span>
+                <span class="st">Résistance au piment<i>3</i><u><s style="width:3%"></s></u></span>
+              </span>
+            </button>
+          </div>
+        </div>
+        <div class="pane" id="p-miss">
+          <h2>Choisissez votre mission</h2>
+          <div class="mwrap"><div id="map" role="application" aria-label="Carte des missions à La Réunion"></div><ol class="mlist" id="mlist"></ol></div>
+        </div>
+        <div class="pane" id="p-set">
+          <h2>Réglages</h2>
+          <div class="set">
+            <div class="setrow"><span><span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" /> <path d="M16 9a5 5 0 0 1 0 6" /> <path d="M19.364 18.364a9 9 0 0 0 0-12.728" /> </svg></span> Son</span><div class="seg" data-set="sound"><button type="button" aria-pressed="true" data-v="1">Oui</button><button type="button" aria-pressed="false" data-v="0">Non</button></div></div>
+            <div class="setrow"><span><span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="m12 14 4-4" /> <path d="M3.34 19a10 10 0 1 1 17.32 0" /> </svg></span> Difficulté</span><div class="seg" data-set="level"><button type="button" aria-pressed="false" data-v="0">Touriste</button><button type="button" aria-pressed="true" data-v="1">Péi</button><button type="button" aria-pressed="false" data-v="2">Yab</button></div></div>
+            <div class="setrow"><span><span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" /> <path d="M20 2v4" /> <path d="M22 4h-4" /> <circle cx="4" cy="20" r="2" /> </svg></span> Décor animé</span><div class="seg" data-set="anim"><button type="button" aria-pressed="true" data-v="1">Oui</button><button type="button" aria-pressed="false" data-v="0">Non</button></div></div>
+          </div>
+        </div>
+      </section>
+      <div class="playwrap">
+        <button class="play" id="play" type="button"><span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /> </svg></span> Jouer</button>
+        <p class="sum" id="sum">Thomas · Sortie de bureau · Péi</p>
+      </div>
+    </div>
+    <div class="foot"><span>Fond de carte © contributeurs OpenStreetMap</span><span>Dernière modification : 16/11/2026 à 21h16</span></div>
+  </div>
+</main>
+
+<!-- ================= CHARGEMENT ================= -->
+<div id="loading" class="screen" aria-live="polite">
+  <div class="ld"><p class="tip" id="tip"></p><div class="row"><span id="ldlabel">Chargement de l'île</span><span id="ldpct">0 %</span></div><div class="track"><i id="ldbar"></i></div></div>
+</div>
+<div id="flash"></div>
+
+<!-- ================= PONG ================= -->
+<div id="pong" class="screen">
+  <div class="pg">
+    <div class="hd"><span>PONG (1972)</span><span id="who">THOMAS VS ÉDOUARD</span></div>
+    <div class="crt"><canvas id="cv" width="640" height="480" aria-label="Jeu Pong"></canvas></div>
+    <p class="hint">SOURIS, DOIGT OU FLÈCHES HAUT ET BAS</p>
+    <div class="msg" id="msg"></div>
+    <div class="acts" id="acts">
+      <button class="pbtn" id="copy" type="button"><span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <rect width="14" height="14" x="8" y="8" rx="2" ry="2" /> <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /> </svg></span> <span>COPIER LE PROMPT</span></button>
+      <button class="pbtn ghost" id="back" type="button"><span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /> <path d="M3 3v5h5" /> </svg></span> RETOUR AU LOBBY</button>
+    </div>
+    <div class="term" id="term"><div class="th"><span>PROMPT.TXT</span><span id="plen"></span></div><pre id="ptext" tabindex="0"></pre></div>
+    <div class="sig">
+      <img src="assets/logo-squirrel-corp-white.svg" alt="Squirrel CORP">
+      <p>VOUS PRÉFÉREZ QUE DES HUMAINS S'EN OCCUPENT ? <a href="https://www.squirrel.fr" target="_blank" rel="noopener">SQUIRREL.FR</a></p>
+      <p>PARODIE RÉALISÉE PAR SQUIRREL CORP. SANS LIEN AVEC AUCUN ÉDITEUR NI STUDIO DE JEU VIDÉO. MODIFIÉ LE 16/11/2026 à 21h16</p>
+    </div>
+  </div>
+</div>
+
+<script type="text/plain" id="prompt">RÔLE
+Tu es un studio de jeu vidéo complet : game designer, développeur 3D temps réel, directeur artistique et sound designer. Tu livres un jeu jouable, pas une démo technique.
+
+OBJECTIF
+Créer « Grand Tour de l'Île », un jeu d'action-aventure en monde ouvert à la troisième personne qui se déroule sur l'île de La Réunion. Le ton est humoristique et bienveillant. Aucune violence, aucune arme : on conduit, on explore, on livre, on se perd et on mange. Tout doit être original : univers, noms, interface, musiques. Ne reprends aucun élément d'un jeu existant.
+
+PLATEFORME ET TECHNIQUE
+- Jeu web jouable dans le navigateur, sur ordinateur et sur mobile.
+- Three.js pour la 3D, moteur physique léger pour les véhicules, TypeScript strict, Vite.
+- 60 images par seconde sur un portable de milieu de gamme, 30 sur un téléphone récent.
+- Chargement initial inférieur à 10 Mo, le reste en chargement progressif par zone.
+- Sauvegarde locale de la progression.
+
+LE MONDE
+- Une île stylisée d'environ 6 km sur 5 km à l'échelle du jeu, fidèle à la géographie réelle : littoral habité, Hauts agricoles, trois cirques, un volcan actif au sud-est.
+- Zones à modéliser : Saint-Denis et son front de mer, la route du Littoral entre falaise et océan, La Possession, Saint-Paul et son marché forain, le lagon de l'Hermitage, le Maïdo et sa vue sur Mafate, la route de Cilaos aux 400 virages, la Plaine des Cafres, le Pas de Bellecombe et le volcan, Grande Anse et ses kiosques.
+- Mafate n'est accessible qu'à pied ou en hélicoptère. C'est voulu.
+- Végétation par étage : cocotiers et filaos sur la côte, canne à sucre à mi-pente, géranium, tamarins des Hauts et brouillard au-dessus de 1 200 mètres.
+- Cycle jour-nuit de 24 minutes. Météo locale : grand soleil sur la côte ouest, pluie à l'est, nuages qui montent dans les cirques dès la fin de matinée.
+
+PERSONNAGES JOUABLES
+- Thomas, le yab des Hauts : chapeau de paille, chemise à carreaux, vieux pick-up. Bonus de tenue de route en montagne, connaît des raccourcis en terre. Malus de patience dans les embouteillages.
+- Édouard, le touriste : chemise rayée, appareil photo, citadine de location. Bonus de points pour chaque photo de paysage. Suit son GPS même quand il a tort.
+- On peut changer de personnage à tout moment hors mission.
+
+VÉHICULES
+Pick-up 4x4, citadine de location, scooter, car jaune (à prendre comme passager), camion-bar, vélo de descente. Chaque véhicule a sa physique : poids, adhérence, puissance en côte. Pas de dégâts spectaculaires, seulement des bosses et un klaxon de plus en plus fatigué.
+
+SYSTÈMES DE JEU
+- Circulation dense aux heures de pointe, quasi nulle la nuit. Le bouchon est un obstacle de gameplay à part entière.
+- Jauge de faim : se remplit avec les samoussas, bouchons, caris et rougails achetés aux camions-bars.
+- Jauge de coup de soleil pour le touriste, jauge de patience pour le yab.
+- Radio de bord avec trois stations aux musiques originales d'inspiration maloya, séga et électro, plus un flash info trafic humoristique.
+- Mode photo.
+
+MISSIONS (HUIT POUR LA PREMIÈRE VERSION)
+1. Sortie de bureau : quitter Saint-Denis à 17 h par la route du Littoral.
+2. Avant les nuages : atteindre le Maïdo avant que la vue ne se bouche.
+3. Piment la pâte : faire le tour du marché de Saint-Paul sans perdre le touriste.
+4. Le dernier samoussa : trouver un camion-bar ouvert à 2 h du matin.
+5. 400 virages : monter à Cilaos sans vider la jauge de nausée du passager.
+6. Ça pète au volcan : se garer au Pas de Bellecombe un soir d'éruption.
+7. Le kiosque du dimanche : réserver un kiosque à Grande Anse à 5 h et livrer la marmite de cari intacte.
+8. Mission bonus : répondre aux mails. Elle reste verrouillée.
+Chaque mission a un objectif principal, deux objectifs secondaires et une note de une à trois étoiles de piment.
+
+INTERFACE
+- Carte de l'île dépliable, boussole, compteur de vitesse, les trois jauges, objectif en cours.
+- Dialogues en français avec des expressions créoles sous-titrées.
+- Commandes clavier, manette et tactiles, toutes reconfigurables.
+- Accessibilité : sous-titres, taille de texte réglable, mode daltonien, réduction des mouvements de caméra.
+
+DIRECTION ARTISTIQUE
+Low-poly généreux, aplats de couleurs, contours légers. Palette de coucher de soleil : rose chaud, orange, violet, bleu nuit, vert canne. Lumière dorée en fin de journée. Interface arrondie et lisible, typographie grasse.
+
+AUDIO
+Ambiances par zone (vagues, vent des Hauts, oiseaux, marché), moteurs distincts par véhicule, bruitages d'interface discrets. Toutes les musiques sont des compositions originales.
+
+LIVRABLES ET ORDRE DE TRAVAIL
+1. Document de conception d'une page et architecture du code.
+2. Prototype : terrain de l'île, un véhicule, la caméra et la conduite.
+3. Monde : zones, végétation, météo, cycle jour-nuit, circulation.
+4. Les deux personnages, les jauges et les camions-bars.
+5. Les huit missions, l'interface et la sauvegarde.
+6. Audio, optimisation, version mobile.
+À chaque étape, donne le code complet, explique comment le lancer et liste ce qui reste à faire.
+
+CRITÈRES D'ACCEPTATION
+- On peut faire le tour complet de l'île sans écran de chargement.
+- Les huit missions sont terminables et rejouables.
+- Aucune erreur dans la console, aucun élément repris d'une œuvre existante.
+- Un joueur réunionnais reconnaît son île et sourit au moins une fois.
+
+Commence par me poser les questions nécessaires, puis propose le plan avant d'écrire la première ligne de code.</script>
+<script src="assets/vendor/gsap.min.js"></script>
+<script src="assets/vendor/leaflet.js"></script>
+<script>
+(function(){
+  var FLAME='<span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4" /> </svg></span>';
+  var M=[
+    {t:"Sortie de bureau",d:"Quitter Saint-Denis à 17 h par la route du Littoral.",lvl:3,ll:[-20.9105,55.3905]},
+    {t:"Avant les nuages",d:"Atteindre le Maïdo avant que Mafate ne disparaisse.",lvl:2,ll:[-21.0707,55.3878]},
+    {t:"Piment la pâte",d:"Marché de Saint-Paul : goûter le piment « pas trop fort ».",lvl:3,ll:[-21.0085,55.2695]},
+    {t:"Le dernier samoussa",d:"Trouver un camion-bar ouvert à 2 h du matin à Saint-Gilles.",lvl:2,ll:[-21.0546,55.2256]},
+    {t:"400 virages",d:"Monter à Cilaos sans que le passager redemande le sac.",lvl:3,ll:[-21.1855,55.4605]},
+    {t:"Ça pète au volcan",d:"Se garer au Pas de Bellecombe un soir d'éruption.",lvl:3,ll:[-21.2206,55.6872]},
+    {t:"Le kiosque du dimanche",d:"Réserver un kiosque à Grande Anse à 5 h du matin.",lvl:1,ll:[-21.3712,55.5505]},
+    {t:"Mission bonus : les mails",d:"Répondre aux clients. Statut : reportée.",lvl:1,ll:[-20.9287,55.3352]}
+  ];
+  var LV=["Touriste","Péi","Yab"];
+  var S={char:"Thomas",mission:0,sound:1,level:1,anim:1};
+  var rm=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var q=new URLSearchParams(location.search);
+  var $=function(s){return document.querySelector(s)},$$=function(s){return [].slice.call(document.querySelectorAll(s))};
+  function show(n){document.body.classList.remove('s-lobby','s-loading','s-pong');document.body.classList.add('s-'+n)}
+  function sum(){$('#sum').textContent=S.char+' · '+M[S.mission].t+' · '+LV[S.level]}
+
+  /* Décor : particules */
+  var motes=$('#motes');
+  for(var i=0;i<16;i++){var m=document.createElement('i');m.style.left=(Math.random()*100)+'%';m.style.animationDuration=(9+Math.random()*12)+'s';m.style.animationDelay=(-Math.random()*20)+'s';m.style.opacity=.3+Math.random()*.6;motes.appendChild(m)}
+
+  /* Onglets */
+  var map=null,markers=[];
+  $$('.tab').forEach(function(t){t.addEventListener('click',function(){
+    $$('.tab').forEach(function(x){x.setAttribute('aria-selected',x===t)});
+    $$('.pane').forEach(function(p){p.classList.toggle('on',p.id===t.dataset.pane)});
+    if(t.dataset.pane==='p-miss')initMap();
+  })});
+  /* Personnages */
+  $$('.char').forEach(function(c){c.addEventListener('click',function(){
+    $$('.char').forEach(function(x){x.setAttribute('aria-pressed',x===c)});S.char=c.dataset.c;sum();
+  })});
+  /* Missions */
+  var list=$('#mlist');
+  M.forEach(function(m,i){
+    var fl='';for(var k=0;k<m.lvl;k++)fl+=FLAME;
+    var li=document.createElement('li');
+    li.innerHTML='<button type="button" aria-pressed="'+(i===0)+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span><span class="t">'+m.t+'</span><span class="d">'+m.d+'</span><span class="f" aria-label="Difficulté '+m.lvl+' sur 3">'+fl+'</span></button>';
+    list.appendChild(li);
+  });
+  function pick(i,fly){
+    S.mission=i;sum();
+    $$('#mlist button').forEach(function(b,j){b.setAttribute('aria-pressed',j===i)});
+    markers.forEach(function(mk,j){var e=mk.getElement();if(e)e.firstChild.classList.toggle('on',j===i)});
+    if(map&&fly)map.flyTo(M[i].ll,11,{duration:rm?0:.9});
+  }
+  list.addEventListener('click',function(e){var b=e.target.closest('button');if(b)pick(+b.dataset.i,true)});
+  function initMap(){
+    if(map){map.invalidateSize();return}
+    try{
+      map=L.map('map',{scrollWheelZoom:false,attributionControl:false}).setView([-21.13,55.53],9);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:16}).addTo(map);
+      M.forEach(function(m,i){
+        var mk=L.marker(m.ll,{icon:L.divIcon({className:'',html:'<div class="pin'+(i===S.mission?' on':'')+'"><b>'+(i+1)+'</b></div>',iconSize:[30,30],iconAnchor:[15,28]})}).addTo(map);
+        mk.on('click',function(){pick(i,false)});markers.push(mk);
+      });
+    }catch(e){console.warn('carte indisponible',e)}
+  }
+  /* Réglages */
+  $$('.seg').forEach(function(seg){seg.addEventListener('click',function(e){
+    var b=e.target.closest('button');if(!b)return;
+    [].forEach.call(seg.children,function(x){x.setAttribute('aria-pressed',x===b)});
+    S[seg.dataset.set]=+b.dataset.v;
+    if(seg.dataset.set==='anim')document.body.classList.toggle('calm',!S.anim);
+    if(seg.dataset.set==='sound'&&S.sound)beep(660,.06);
+    sum();
+  })});
+
+  /* Son */
+  var AC=null;
+  function beep(f,d){
+    if(!S.sound)return;
+    try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();var o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=f;g.gain.value=.05;o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}
+  }
+
+  /* Chargement puis coupure */
+  var TIPS=["Astuce : le raccourci de Thomas n'en est pas un.","Astuce : à 17 h, la route du Littoral compte comme un boss de fin.","Astuce : le piment « pas trop fort » est toujours trop fort.","Astuce : au Maïdo, les nuages arrivent toujours avant vous.","Génération des 400 virages de Cilaos."];
+  $('#play').addEventListener('click',function(){
+    beep(440,.08);show('loading');
+    var bar=$('#ldbar'),pct=$('#ldpct'),tip=$('#tip'),lab=$('#ldlabel'),p=0,k=0,fast=q.has('fast');
+    tip.textContent=TIPS[0];bar.style.width='0';lab.textContent="Chargement de l'île";
+    var tt=setInterval(function(){k=(k+1)%TIPS.length;tip.textContent=TIPS[k]},fast?400:1300);
+    var t=setInterval(function(){
+      p+=p<70?3.2:p<95?1.1:.12;if(p>99)p=99;
+      bar.style.width=p+'%';pct.textContent=Math.floor(p)+' %';
+      if(p>=99){clearInterval(t);clearInterval(tt);
+        lab.textContent='Chargement de la flemme';tip.textContent='Attendez. On a une meilleure idée.';
+        setTimeout(cut,fast?500:1700);}
+    },fast?12:60);
+  });
+  function cut(){
+    var f=$('#flash');beep(120,.25);
+    f.style.transition='none';f.style.opacity=1;
+    setTimeout(function(){show('pong');startPong();f.style.transition='opacity .5s';f.style.opacity=0},90);
+  }
+  $('#back').addEventListener('click',function(){stopPong();show('lobby')});
+
+  /* Pong */
+  var cv=$('#cv'),cx=cv.getContext('2d'),W=640,H=480,raf=0,G=null,typed=false;
+  function reset(dir){G.bx=W/2;G.by=H/2;var a=(Math.random()*.7-.35);G.vx=dir*5*Math.cos(a);G.vy=5*Math.sin(a)}
+  function startPong(){
+    $('#who').textContent=(S.char==='Thomas'?'THOMAS VS ÉDOUARD':'ÉDOUARD VS THOMAS');
+    G={py:H/2,cy:H/2,sp:0,sc:0,bx:0,by:0,vx:0,vy:0,key:0};reset(Math.random()<.5?1:-1);
+    cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);
+    $('#pong').scrollTop=0;
+    if(!typed){typed=true;setTimeout(typeMsg,q.has('fast')?300:2600)}
+  }
+  function stopPong(){cancelAnimationFrame(raf)}
+  function loop(){
+    var ph=64,pw=10,bs=10,cpu=[3.1,4.4,6.2][S.level];
+    if(G.key)G.py+=G.key*7;
+    G.py=Math.max(ph/2,Math.min(H-ph/2,G.py));
+    var target=G.vx>0?G.by:H/2;
+    if(Math.abs(target-G.cy)>6)G.cy+=Math.sign(target-G.cy)*cpu;
+    G.cy=Math.max(ph/2,Math.min(H-ph/2,G.cy));
+    G.bx+=G.vx;G.by+=G.vy;
+    if(G.by<bs/2||G.by>H-bs/2){G.vy*=-1;G.by=Math.max(bs/2,Math.min(H-bs/2,G.by));beep(220,.03)}
+    if(G.vx<0&&G.bx<30+pw&&G.bx>24&&Math.abs(G.by-G.py)<ph/2+bs/2){G.vx=Math.min(11,-G.vx*1.06);G.vy+=(G.by-G.py)*.12;G.bx=30+pw;beep(440,.04)}
+    if(G.vx>0&&G.bx>W-30-pw&&G.bx<W-24&&Math.abs(G.by-G.cy)<ph/2+bs/2){G.vx=Math.max(-11,-G.vx*1.06);G.vy+=(G.by-G.cy)*.12;G.bx=W-30-pw;beep(440,.04)}
+    if(G.bx<-20){G.sc++;beep(110,.2);reset(1)}
+    if(G.bx>W+20){G.sp++;beep(880,.2);reset(-1)}
+    cx.fillStyle='#000';cx.fillRect(0,0,W,H);cx.fillStyle='#fff';
+    for(var y=8;y<H;y+=24)cx.fillRect(W/2-3,y,6,12);
+    cx.fillRect(24,G.py-ph/2,pw,ph);cx.fillRect(W-24-pw,G.cy-ph/2,pw,ph);
+    cx.fillRect(G.bx-bs/2,G.by-bs/2,bs,bs);
+    cx.font='72px "VT323", monospace';cx.textAlign='center';
+    cx.fillText(G.sp,W/2-90,78);cx.fillText(G.sc,W/2+90,78);
+    raf=requestAnimationFrame(loop);
+  }
+  function moveTo(e){var r=cv.getBoundingClientRect(),y=(e.touches?e.touches[0].clientY:e.clientY);if(G)G.py=(y-r.top)/r.height*H}
+  cv.addEventListener('mousemove',moveTo);
+  cv.addEventListener('touchstart',function(e){moveTo(e);e.preventDefault()},{passive:false});
+  cv.addEventListener('touchmove',function(e){moveTo(e);e.preventDefault()},{passive:false});
+  window.addEventListener('keydown',function(e){if(!G||!document.body.classList.contains('s-pong'))return;if(e.key==='ArrowUp'||e.key==='z'||e.key==='w'){G.key=-1;e.preventDefault()}if(e.key==='ArrowDown'||e.key==='s'){G.key=1;e.preventDefault()}});
+  window.addEventListener('keyup',function(e){if(G&&/Arrow(Up|Down)|^[zws]$/.test(e.key))G.key=0});
+
+  /* Message + prompt */
+  var PROMPT=document.getElementById('prompt').textContent.trim();
+  $('#ptext').textContent=PROMPT;$('#plen').textContent=PROMPT.length+' CARACTÈRES';
+  var LINES=[
+    ['err','ERREUR 974 : JEU NON TROUVÉ'],
+    ['','ON VOUS AVAIT PROMIS UN GTA PÉI.'],
+    ['','ON A EU LA FLEMME. ET POUR ÊTRE HONNÊTES, ON PRÉFÈRE JOUER AU VRAI.'],
+    ['','IL VOUS RESTE PONG. IL A 54 ANS ET IL TOURNE TRÈS BIEN.'],
+    ['','MAIS ON EST SYMPAS. MAINTENANT QUE TOUT LE MONDE FAIT TOUT AVEC L\'IA, VOICI LE PROMPT COMPLET POUR CRÉER VOTRE PROPRE GTA RÉUNIONNAIS.'],
+    ['','COPIEZ. COLLEZ. DÉPENSEZ VOS TOKENS.']
+  ];
+  function typeMsg(){
+    var box=$('#msg'),li=0,speed=q.has('fast')?0:22;
+    function next(){
+      if(li>=LINES.length){$('#acts').classList.add('on');$('#term').classList.add('on');return}
+      var p=document.createElement('p'),sp=document.createElement('span');if(LINES[li][0])sp.className=LINES[li][0];sp.classList.add('cur');p.appendChild(sp);box.appendChild(p);
+      var txt=LINES[li][1],ci=0;
+      if(rm||!speed){sp.textContent=txt;sp.classList.remove('cur');li++;next();return}
+      var t=setInterval(function(){sp.textContent=txt.slice(0,++ci);if(ci>=txt.length){clearInterval(t);sp.classList.remove('cur');li++;setTimeout(next,380)}},speed);
+    }
+    next();
+  }
+  $('#copy').addEventListener('click',function(){
+    var lab=this.querySelector('span:last-child');
+    function ok(){lab.textContent='PROMPT COPIÉ';beep(880,.08);setTimeout(function(){lab.textContent='COPIER LE PROMPT'},2200)}
+    function fb(){var r=document.createRange();r.selectNodeContents($('#ptext'));var s=getSelection();s.removeAllRanges();s.addRange(r);try{document.execCommand('copy');ok()}catch(e){lab.textContent='SÉLECTIONNÉ, COPIEZ'}}
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(PROMPT).then(ok,fb);else fb();
+  });
+
+  /* Intro */
+  var intro=$('#intro');
+  function endIntro(){
+    if(!intro)return;var el=intro;intro=null;
+    if(window.gsap){gsap.to(el,{yPercent:-100,duration:.9,ease:'power3.inOut',onComplete:function(){el.remove()}});
+      gsap.from('.left > *, .panel, .playwrap',{y:36,opacity:0,duration:.8,stagger:.1,delay:.35,ease:'power3.out',clearProps:'all'});}
+    else el.remove();
+  }
+  if(q.has('nointro')||rm||!window.gsap){intro.remove();intro=null}
+  else{
+    var tl=gsap.timeline({onComplete:endIntro});
+    gsap.set('#intro .w,#intro .gti',{opacity:0});
+    tl.to('#intro .presents',{opacity:1,duration:.6,ease:'power2.out'})
+      .to('#intro .presents',{opacity:0,y:-20,duration:.4,ease:'power2.in'},'+=.6')
+      .to('#intro .sky',{clipPath:'circle(150% at 50% 100%)',duration:1,ease:'power2.inOut'})
+      .to('#intro .sun',{opacity:1,bottom:'-12vmin',duration:1.3,ease:'power2.out'},'<')
+      .to('#intro .ridge',{y:0,duration:.8,ease:'power3.out'},'<.2')
+      .fromTo('#intro .w1',{opacity:0,scale:3.2,rotate:-8},{opacity:1,scale:1,rotate:0,duration:.34,ease:'power4.in'},'-=.3')
+      .fromTo('#intro .w2',{opacity:0,x:-140},{opacity:1,x:0,duration:.3,ease:'power3.out'},'+=.08')
+      .fromTo('#intro .w3',{opacity:0,scale:3.2,rotate:8},{opacity:1,scale:1,rotate:0,duration:.34,ease:'power4.in'},'+=.05')
+      .to('#intro .title',{x:'+=10',duration:.05,repeat:5,yoyo:true})
+      .fromTo('#intro .gti',{opacity:0,scale:0,rotate:-120},{opacity:1,scale:1,rotate:14,duration:.5,ease:'back.out(2.4)'},'+=.1')
+      .to({}, {duration:.9});
+    $('#skip').addEventListener('click',function(){tl.kill();endIntro()});
+  }
+  sum();
+})();
+</script>
+</body>
+</html>
